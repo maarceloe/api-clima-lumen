@@ -60,10 +60,15 @@
                     (position) => {
                         const lat = position.coords.latitude;
                         const lon = position.coords.longitude;
-                    
+
+                        if (!lat || !lon) {
+                            console.error('Coordenadas inválidas recebidas do navegador.');
+                            document.getElementById('localizacao').innerText = 'Não foi possível obter sua localização.';
+                            return;
+                        }
+
+                        // Chama as funções para buscar os dados com base na localização
                         buscarClima(lat, lon, "resultado-local", true);
-                        buscarPrevisao(lat, lon);
-                        buscarComparacao(lat, lon);
                     },
                     (error) => {
                         console.error('Erro ao obter localização:', error);
@@ -117,8 +122,21 @@
 
         // Função para buscar o clima atual
         async function buscarClima(lat, lon, resultadoId, isLocal = false) {
+            if (!lat || !lon) {
+                console.error('Coordenadas inválidas fornecidas para buscarClima.');
+                document.getElementById(resultadoId).innerHTML = `<p class="text-red-500">Erro: Coordenadas inválidas.</p>`;
+                return;
+            }
+
             try {
-                let resposta = await fetch(`/api/clima-atual?lat=${lat}&lon=${lon}`);
+                // Use a URL completa para evitar problemas de caminho relativo
+                let resposta = await fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`);
+
+                // Verifica se a resposta é JSON
+                if (!resposta.ok) {
+                    throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
+                }
+
                 let dados = await resposta.json();
 
                 if (dados.error) {
@@ -128,24 +146,31 @@
                 const descricao = weatherDescriptions[dados.weathercode] || "Condição desconhecida";
 
                 if (isLocal) {
-                    document.getElementById('localizacao').innerText = `Clima Atual`;
+                    document.getElementById('localizacao').innerText = `Clima Atual para sua localização`;
                 }
 
+                // Atualiza o elemento com os dados do clima
                 document.getElementById(resultadoId).innerHTML = `
                     <div class="p-4 bg-gray-100 rounded-lg">
-                        <p>Temperatura: <span class="font-semibold">${dados.temperature}°C</span></p>
-                        <p>Velocidade do Vento: <span class="font-semibold">${dados.windspeed} km/h</span></p>
-                        <p>Direção do Vento: <span class="font-semibold">${dados.winddirection}°</span></p>
-                        <p>Condição: <span class="font-semibold">${descricao}</span></p>
+                        <p><strong>Temperatura:</strong> ${dados.temperature}°C</p>
+                        <p><strong>Velocidade do Vento:</strong> ${dados.windspeed} km/h</p>
+                        <p><strong>Direção do Vento:</strong> ${dados.winddirection}°</p>
+                        <p><strong>Condição:</strong> ${descricao}</p>
                     </div>`;
             } catch (error) {
                 console.error('Erro ao buscar o clima:', error);
-                document.getElementById(resultadoId).innerHTML = `<p class="text-red-500">Erro ao buscar o clima.</p>`;
+                document.getElementById(resultadoId).innerHTML = `<p class="text-red-500">Erro ao buscar o clima: ${error.message}</p>`;
             }
         }
 
         // Função para buscar a previsão de 7 dias
         async function buscarPrevisao(lat, lon) {
+            if (!lat || !lon) {
+                console.error('Coordenadas inválidas fornecidas para buscarPrevisao.');
+                document.getElementById('previsao-container').innerHTML = `<p class="text-red-500">Erro: Coordenadas inválidas.</p>`;
+                return;
+            }
+
             try {
                 let resposta = await fetch(`/api/previsao?lat=${lat}&lon=${lon}`);
                 let dados = await resposta.json();
@@ -172,6 +197,12 @@
 
         // Função para buscar a comparação de temperaturas
         async function buscarComparacao(lat, lon) {
+            if (!lat || !lon) {
+                console.error('Coordenadas inválidas fornecidas para buscarComparacao.');
+                document.getElementById('comparacao-container').innerHTML = `<p class="text-red-500">Erro: Coordenadas inválidas.</p>`;
+                return;
+            }
+
             try {
                 let resposta = await fetch(`/api/comparar-temperatura?lat=${lat}&lon=${lon}`);
                 let dados = await resposta.json();

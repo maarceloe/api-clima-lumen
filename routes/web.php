@@ -68,27 +68,32 @@ $router->get('/api/clima-atual', function (\Illuminate\Http\Request $request) {
     $lat = $request->get('lat');
     $lon = $request->get('lon');
 
-    if (!$lat || !$lon) {
-        return response()->json(['error' => 'Coordenadas não informadas'], 400);
+    // Validação das coordenadas
+    if (!$lat || !$lon || !is_numeric($lat) || !is_numeric($lon)) {
+        return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
     }
 
-    // URL da API Open-Meteo para buscar o clima atual
     $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
 
     try {
-        // Faz a requisição para a API
+        // Faz a requisição para a API Open-Meteo
         $response = file_get_contents($url);
-        $dadosClima = json_decode($response, true);
 
-        // Verifica se os dados do clima estão disponíveis
-        if (!isset($dadosClima['current_weather'])) {
-            return response()->json(['error' => 'Dados do clima não disponíveis'], 500);
+        // Verifica se a resposta é válida
+        if ($response === false) {
+            return response()->json(['error' => 'Erro ao conectar à API Open-Meteo'], 500);
         }
 
-        // Retorna os dados do clima atual
+        $dadosClima = json_decode($response, true);
+
+        // Verifica se os dados do clima atual estão disponíveis
+        if (!isset($dadosClima['current_weather'])) {
+            return response()->json(['error' => 'Dados do clima atual não disponíveis'], 500);
+        }
+
         return response()->json($dadosClima['current_weather']);
     } catch (\Exception $e) {
-        return response()->json(['error' => 'Erro ao buscar o clima atual'], 500);
+        return response()->json(['error' => 'Erro ao buscar o clima atual', 'details' => $e->getMessage()], 500);
     }
 });
 
