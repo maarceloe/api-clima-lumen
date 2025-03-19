@@ -6,31 +6,103 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>API de Clima</title>
 </head>
-<body class="flex items-center justify-center h-screen bg-blue-200">
-    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
-        <h1 class="text-xl font-bold">Consultar Clima</h1>
-        <input id="cidade" type="text" placeholder="Digite uma cidade" class="border p-2 m-2" oninput="buscarSugestoes()">
-        <ul id="sugestoes" class="text-left border bg-white max-h-40 overflow-y-auto"></ul>
-        <input type="button" value="Buscar" onclick="buscarClimaPorNome()">
-        <div id="resultado" class="mt-4"></div>
+<body class="bg-blue-200">
+    <!-- Clima Atual com base na geolocalização -->
+    <div id="clima-atual" class="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-lg">
+        <h1 class="text-lg font-bold">Clima Atual</h1>
+        <p id="localizacao" class="text-gray-500 mb-2">Obtendo sua localização...</p>
+        <div id="resultado-local" class="mt-2"></div>
+    </div>
+
+    <!-- Pesquisa de clima por cidade -->
+    <div class="flex items-center justify-center h-screen">
+        <div class="bg-white p-6 rounded-lg shadow-lg text-center w-96">
+            <h1 class="text-xl font-bold">Pesquisar Clima</h1>
+            <input id="cidade" type="text" placeholder="Digite o nome da cidade" class="border p-2 w-full mt-4 mb-4" oninput="buscarSugestoes()">
+            <ul id="sugestoes" class="text-left border bg-white max-h-40 overflow-y-auto"></ul>
+            <div id="resultado-cidade" class="mt-4"></div>
+        </div>
     </div>
 
     <script>
-        // Buscar sugestões de cidades enquanto o usuário digita
-        function buscarSugestoes() {
-            let cidade = document.getElementById('cidade').value.trim();
+        // Mapeamento de códigos de clima para descrições
+        const weatherDescriptions = {
+            0: "Céu limpo", 1: "Principalmente limpo", 2: "Parcialmente nublado", 3: "Nublado", 45: "Nevoeiro",
+            48: "Nevoeiro com geada", 51: "Chuvisco leve", 53: "Chuvisco moderado", 55: "Chuvisco intenso",
+            61: "Chuva leve", 63: "Chuva moderada", 65: "Chuva forte", 80: "Pancadas de chuva leves",
+            81: "Pancadas de chuva moderadas", 82: "Pancadas de chuva fortes",
+        };
 
-            if (cidade.length < 3) {
+        // Função para obter a localização do usuário
+        function obterLocalizacao() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+
+                        // Atualiza a mensagem de localização
+                        document.getElementById('localizacao').innerText = `Obtendo o clima para sua localização...`;
+
+                        // Busca o clima com base na localização
+                        buscarClima(lat, lon, "resultado-local", true);
+                    },
+                    (error) => {
+                        console.error('Erro ao obter localização:', error);
+                        document.getElementById('localizacao').innerText = 'Não foi possível obter sua localização.';
+                    }
+                );
+            } else {
+                document.getElementById('localizacao').innerText = 'Geolocalização não é suportada pelo seu navegador.';
+            }
+        }
+
+        // Função para buscar o clima com base na latitude e longitude
+        async function buscarClima(lat, lon, resultadoId, isLocal = false) {
+            try {
+                let resposta = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
+                let dados = await resposta.json();
+
+                // Exibe os dados do clima na página
+                const clima = dados.current_weather;
+                const descricao = weatherDescriptions[clima.weathercode] || "Condição desconhecida";
+
+                // Atualiza o nome da cidade se for a localização atual
+                if (isLocal) {
+                    document.getElementById('localizacao').innerText = `Clima em sua localização`;
+                }
+
+                document.getElementById(resultadoId).innerHTML = `
+                    <div class="p-4 bg-gray-100 rounded-lg">
+                        <p class="font-bold text-lg">${dados.city || "Cidade desconhecida"}</p>
+                        <p>Temperatura: <span class="font-semibold">${clima.temperature}°C</span></p>
+                        <p>Velocidade do Vento: <span class="font-semibold">${clima.windspeed} km/h</span></p>
+                        <p>Direção do Vento: <span class="font-semibold">${clima.winddirection}°</span></p>
+                        <p>Condição: <span class="font-semibold">${descricao}</span></p>
+                    </div>`;
+            } catch (error) {
+                console.error('Erro ao buscar o clima:', error);
+                document.getElementById(resultadoId).innerHTML = `
+                    <p class="text-red-500">Erro ao buscar o clima. Tente novamente.</p>`;
+            }
+        }
+
+        // Função para buscar sugestões de cidades enquanto o usuário digita
+        function buscarSugestoes() {
+            let cidade = document.getElementById('cidade').value;
+
+            if (cidade.length < 2) {
                 document.getElementById('sugestoes').innerHTML = '';
                 return;
             }
 
-            fetch(`http://localhost:8000/api/sugestoes?cidade=${cidade}`)
+            // Faz a requisição para a API de sugestões
+            fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${cidade}`)
                 .then(res => res.json())
                 .then(data => {
-                    let sugestoesHTML = data.map(cidade => `
-                        <li class="p-2 cursor-pointer hover:bg-blue-100" onclick="buscarClima('${cidade.nome}', ${cidade.lat}, ${cidade.lon})">
-                            ${cidade.nome}, ${cidade.pais}
+                    let sugestoesHTML = data.results.map(cidade => `
+                        <li class="p-2 cursor-pointer hover:bg-blue-100" onclick="selecionarCidade(${cidade.latitude}, ${cidade.longitude}, '${cidade.name}')">
+                            ${cidade.name}, ${cidade.country}
                         </li>
                     `).join('');
                     document.getElementById('sugestoes').innerHTML = sugestoesHTML;
@@ -38,47 +110,15 @@
                 .catch(err => console.log(err));
         }
 
-        function buscarClima(nome, lat, lon) {
-            document.getElementById('cidade').value = nome;
-            document.getElementById('sugestoes').innerHTML = '';
-
-            fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`)
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('resultado').innerHTML = `
-                        <div class="p-4 bg-gray-100 rounded-lg">
-                            <p class="font-bold text-lg">${data.cidade}, ${data.pais}</p>
-                            <p>Temperatura: <span class="font-semibold">${data.temperatura}°C</span></p>
-                            <p>Umidade: <span class="font-semibold">${data.umidade}%</span></p>
-                            <p>Descrição: <span class="font-semibold">${data.descricao}</span></p>
-                        </div>`;
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('resultado').innerHTML = `<p class="text-red-500">Erro ao buscar o clima. Tente novamente.</p>`;
-                });
+        // Função para selecionar uma cidade e buscar o clima
+        function selecionarCidade(lat, lon, nome) {
+            document.getElementById('cidade').value = nome; // Preenche o campo com o nome da cidade
+            document.getElementById('sugestoes').innerHTML = ''; // Limpa as sugestões
+            buscarClima(lat, lon, "resultado-cidade"); // Busca o clima para a cidade selecionada
         }
 
-        function buscarClimaPorNome() {
-            let cidade = document.getElementById('cidade').value.trim();
-            if (!cidade) return;
-
-            fetch(`http://localhost:8000/api/clima-atual?cidade=${cidade}`)
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('resultado').innerHTML = `
-                        <div class="p-4 bg-gray-100 rounded-lg">
-                            <p class="font-bold text-lg">${data.cidade}, ${data.pais}</p>
-                            <p>Temperatura: <span class="font-semibold">${data.temperatura}°C</span></p>
-                            <p>Umidade: <span class="font-semibold">${data.umidade}%</span></p>
-                            <p>Descrição: <span class="font-semibold">${data.descricao}</span></p>
-                        </div>`;
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('resultado').innerHTML = `<p class="text-red-500">Erro ao buscar o clima. Tente novamente.</p>`;
-                });
-        }
+        // Chama a função para obter a localização ao carregar a página
+        window.onload = obterLocalizacao;
     </script>
 </body>
 </html>

@@ -9,6 +9,8 @@ require_once __DIR__.'/../vendor/autoload.php';
 
 date_default_timezone_set(env('APP_TIMEZONE', 'UTC'));
 
+Dotenv\Dotenv::createImmutable(__DIR__ . '/../')->load();
+
 /*
 |--------------------------------------------------------------------------
 | Create The Application
