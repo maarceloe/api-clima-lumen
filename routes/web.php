@@ -13,6 +13,18 @@
 |
 */
 
+
+//rotas
+
+$router->get('/api/dia-atual', 'Controller@getCurrentWeather');
+$router->get('/api/clima', 'Controller@getCurrentWeather');
+$router->get('/api/previsao', 'Controller@getForecast');
+$router->get('/api/temperatura-ontem', 'Controller@getYesterdayTemp');
+$router->get('/api/converter-temperatura', 'Controller@convertTemperature');
+$router->get('/api/sol', 'Controller@getSunTimes');
+$router->get('/api/previsao-chuva', 'Controller@getRainForecast');
+$router->get('/api/comparar-temperatura', 'Controller@compareTemperature');
+
 $router->get('/api/sugestoes', function (\Illuminate\Http\Request $request) {
     $query = $request->get('query');
     $apiKey = env('API_KEY');
