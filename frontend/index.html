@@ -27,10 +27,21 @@
     <script>
         // Mapeamento de códigos de clima para descrições
         const weatherDescriptions = {
-            0: "Céu limpo", 1: "Principalmente limpo", 2: "Parcialmente nublado", 3: "Nublado", 45: "Nevoeiro",
-            48: "Nevoeiro com geada", 51: "Chuvisco leve", 53: "Chuvisco moderado", 55: "Chuvisco intenso",
-            61: "Chuva leve", 63: "Chuva moderada", 65: "Chuva forte", 80: "Pancadas de chuva leves",
-            81: "Pancadas de chuva moderadas", 82: "Pancadas de chuva fortes",
+            0: "Céu limpo",
+            1: "Principalmente limpo",
+            2: "Parcialmente nublado",
+            3: "Nublado",
+            45: "Nevoeiro",
+            48: "Nevoeiro com geada",
+            51: "Chuvisco leve",
+            53: "Chuvisco moderado",
+            55: "Chuvisco intenso",
+            61: "Chuva leve",
+            63: "Chuva moderada",
+            65: "Chuva forte",
+            80: "Pancadas de chuva leves",
+            81: "Pancadas de chuva moderadas",
+            82: "Pancadas de chuva fortes",
         };
 
         // Função para obter a localização do usuário
@@ -57,65 +68,130 @@
             }
         }
 
-        // Função para buscar o clima com base na latitude e longitude
-        async function buscarClima(lat, lon, resultadoId, isLocal = false) {
+        async function buscarNomeCidade(lat, lon, resultadoId, isLocal = false) {
             try {
-                let resposta = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
+                let resposta = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?latitude=${lat}&longitude=${lon}&language=pt&format=json`);
                 let dados = await resposta.json();
 
-                // Exibe os dados do clima na página
-                const clima = dados.current_weather;
-                const descricao = weatherDescriptions[clima.weathercode] || "Condição desconhecida";
-
-                // Atualiza o nome da cidade se for a localização atual
-                if (isLocal) {
-                    document.getElementById('localizacao').innerText = `Clima em sua localização`;
+                if (!dados.results || dados.results.length === 0) {
+                    throw new Error("Nenhum resultado encontrado.");
                 }
 
-                document.getElementById(resultadoId).innerHTML = `
-                    <div class="p-4 bg-gray-100 rounded-lg">
-                        <p class="font-bold text-lg">${dados.city || "Cidade desconhecida"}</p>
-                        <p>Temperatura: <span class="font-semibold">${clima.temperature}°C</span></p>
-                        <p>Velocidade do Vento: <span class="font-semibold">${clima.windspeed} km/h</span></p>
-                        <p>Direção do Vento: <span class="font-semibold">${clima.winddirection}°</span></p>
-                        <p>Condição: <span class="font-semibold">${descricao}</span></p>
-                    </div>`;
+                const nomeCidade = dados.results[0].name;
+                const pais = dados.results[0].country;
+
+                // Busca o clima passando a cidade e o país
+                buscarClima(lat, lon, resultadoId, `${nomeCidade}, ${pais}`, isLocal);
             } catch (error) {
-                console.error('Erro ao buscar o clima:', error);
-                document.getElementById(resultadoId).innerHTML = `
-                    <p class="text-red-500">Erro ao buscar o clima. Tente novamente.</p>`;
+                console.error('Erro ao buscar o nome da cidade:', error);
+                document.getElementById(resultadoId).innerHTML = `<p class="text-red-500">Erro ao buscar o nome da cidade.</p>`;
             }
         }
 
-        // Função para buscar sugestões de cidades enquanto o usuário digita
-        function buscarSugestoes() {
-            let cidade = document.getElementById('cidade').value;
 
-            if (cidade.length < 2) {
-                document.getElementById('sugestoes').innerHTML = '';
+        // Função para buscar o clima com base na latitude e longitude
+        async function buscarClima(lat, lon, resultadoId, nomeCidade = "Cidade desconhecida", isLocal = false) {
+        try {
+            let resposta = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=auto`);
+            let dados = await resposta.json();
+
+            // Exibe os dados do clima na página
+            const clima = dados.current_weather;
+            const descricao = weatherDescriptions[clima.weathercode] || "Condição desconhecida";
+
+            // Atualiza a localização corretamente
+            if (isLocal) {
+                document.getElementById('localizacao').innerText = `Clima em ${nomeCidade}`;
+            }
+
+            document.getElementById(resultadoId).innerHTML = `
+                <div class="p-4 bg-gray-100 rounded-lg">
+                    <p class="font-bold text-lg">${nomeCidade}</p>
+                    <p>Temperatura: <span class="font-semibold">${clima.temperature}°C</span></p>
+                    <p>Velocidade do Vento: <span class="font-semibold">${clima.windspeed} km/h</span></p>
+                    <p>Direção do Vento: <span class="font-semibold">${clima.winddirection}°</span></p>
+                    <p>Condição: <span class="font-semibold">${descricao}</span></p>
+                </div>`;
+        } catch (error) {
+            console.error('Erro ao buscar o clima:', error);
+            document.getElementById(resultadoId).innerHTML = `<p class="text-red-500">Erro ao buscar o clima.</p>`;
+        }
+    }
+
+
+        // Função para buscar sugestões de cidades enquanto o usuário digita
+// Função para buscar sugestões de cidades enquanto o usuário digita
+function buscarSugestoes() {
+    let cidade = document.getElementById('cidade').value;
+
+    if (cidade.length < 2) {
+        document.getElementById('sugestoes').innerHTML = '';
+        return;
+    }
+
+    // Faz a requisição para a rota do backend que busca sugestões
+    fetch(`/api/sugestoes?query=${cidade}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.length === 0) {
+                document.getElementById('sugestoes').innerHTML = '<li class="p-2 text-gray-500">Nenhuma cidade encontrada.</li>';
                 return;
             }
 
-            // Faz a requisição para a API de sugestões
-            fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${cidade}`)
-                .then(res => res.json())
-                .then(data => {
-                    let sugestoesHTML = data.results.map(cidade => `
-                        <li class="p-2 cursor-pointer hover:bg-blue-100" onclick="selecionarCidade(${cidade.latitude}, ${cidade.longitude}, '${cidade.name}')">
-                            ${cidade.name}, ${cidade.country}
-                        </li>
-                    `).join('');
-                    document.getElementById('sugestoes').innerHTML = sugestoesHTML;
-                })
-                .catch(err => console.log(err));
+            let sugestoesHTML = data.map(cidade => `
+                <li class="p-2 cursor-pointer hover:bg-blue-100"
+                    onclick="selecionarCidade(${cidade.lat}, ${cidade.lon}, '${cidade.name}', '${cidade.state || ''}', '${cidade.country}')">
+                    ${cidade.name}, ${cidade.state || ''}, ${cidade.country}
+                </li>
+            `).join('');
+            document.getElementById('sugestoes').innerHTML = sugestoesHTML;
+        })
+        .catch(err => {
+            console.error("Erro ao buscar sugestões:", err);
+            document.getElementById('sugestoes').innerHTML = '<li class="p-2 text-red-500">Erro ao buscar sugestões.</li>';
+        });
+}
+
+// Função para buscar o clima com base na latitude e longitude
+async function buscarClima(lat, lon, resultadoId, nomeCidade = "Cidade desconhecida", isLocal = false) {
+    try {
+        // Faz a requisição para a rota do backend que busca o clima atual
+        let resposta = await fetch(`/api/clima-atual?lat=${lat}&lon=${lon}`);
+        let dados = await resposta.json();
+
+        if (dados.error) {
+            throw new Error(dados.error);
         }
 
-        // Função para selecionar uma cidade e buscar o clima
-        function selecionarCidade(lat, lon, nome) {
-            document.getElementById('cidade').value = nome; // Preenche o campo com o nome da cidade
-            document.getElementById('sugestoes').innerHTML = ''; // Limpa as sugestões
-            buscarClima(lat, lon, "resultado-cidade"); // Busca o clima para a cidade selecionada
+        // Exibe os dados do clima na página
+        const descricao = weatherDescriptions[dados.weathercode] || "Condição desconhecida";
+
+        // Atualiza o nome da cidade se for a localização atual
+        if (isLocal) {
+            document.getElementById('localizacao').innerText = `Clima em ${nomeCidade}`;
         }
+
+        document.getElementById(resultadoId).innerHTML = `
+            <div class="p-4 bg-gray-100 rounded-lg">
+                <p class="font-bold text-lg">${nomeCidade}</p>
+                <p>Temperatura: <span class="font-semibold">${dados.temperature}°C</span></p>
+                <p>Velocidade do Vento: <span class="font-semibold">${dados.windspeed} km/h</span></p>
+                <p>Direção do Vento: <span class="font-semibold">${dados.winddirection}°</span></p>
+                <p>Condição: <span class="font-semibold">${descricao}</span></p>
+            </div>`;
+    } catch (error) {
+        console.error('Erro ao buscar o clima:', error);
+        document.getElementById(resultadoId).innerHTML = `<p class="text-red-500">Erro ao buscar o clima.</p>`;
+    }
+}
+
+        // Função para selecionar uma cidade e buscar o clima
+        function selecionarCidade(lat, lon, nome, pais) {
+            document.getElementById('cidade').value = `${nome}, ${pais}`; // Exibir cidade e país no input
+            document.getElementById('sugestoes').innerHTML = ''; // Limpar sugestões
+            buscarClima(lat, lon, "resultado-cidade", `${nome}, ${pais}`); // Buscar clima
+        }
+
 
         // Chama a função para obter a localização ao carregar a página
         window.onload = obterLocalizacao;

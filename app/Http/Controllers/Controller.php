@@ -10,118 +10,119 @@ use GuzzleHttp\Exception\RequestException;
 class ClimaController extends BaseController
 {
     protected $client;
-    protected $apiKey;
 
     public function __construct()
     {
         // Inicia o cliente HTTP para fazer as requisições à API OpenWeather
         $this->client = new Client();
-        $this->apiKey = env('API_KEY'); // Obtém a chave da API do .env
-    }
-
-    public function fraseDiaAtual(Request $request)
-    {
-        $cidade = $request->get('cidade', 'Brasília');
-        $dados = $this->obterClimaAtual($cidade);
-
-        if (!$dados) {
-            return response()->json(['erro' => 'Cidade não encontrada'], 404);
-        }
-
-        $frase = "Hoje está {$dados['descricao']} em {$cidade}, com {$dados['temperatura']}°C e umidade de {$dados['umidade']}%.";
-        return response()->json(['frase' => $frase]);
     }
 
     public function climaAtual(Request $request)
     {
         try {
-            // Obtém os parâmetros de latitude e longitude ou o nome da cidade
             $lat = $request->get('lat');
             $lon = $request->get('lon');
-            $cidade = $request->get('cidade', 'Brasília');
 
-            // Verifica se latitude e longitude foram fornecidas
-            if ($lat && $lon) {
-                // Faz a requisição para a API OpenWeather com latitude e longitude
-                $resposta = $this->client->get("https://api.openweathermap.org/data/2.5/weather", [
-                    'query' => [
-                        'lat' => $lat,
-                        'lon' => $lon,
-                        'appid' => $this->apiKey,
-                        'units' => 'metric',
-                        'lang' => 'pt'
-                    ]
-                ]);
-            } else {
-                // Faz a requisição para a API OpenWeather com o nome da cidade
-                $resposta = $this->client->get("https://api.openweathermap.org/data/2.5/weather", [
-                    'query' => [
-                        'q' => $cidade,
-                        'appid' => $this->apiKey,
-                        'units' => 'metric',
-                        'lang' => 'pt'
-                    ]
-                ]);
+            if (!$lat || !$lon) {
+                return response()->json(['error' => 'Coordenadas não informadas'], 400);
             }
 
-            // Converte a resposta JSON da API para array PHP
-            $dados = json_decode($resposta->getBody(), true);
+            // URL da API Open-Meteo para buscar o clima atual
+            $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
 
-            // Retorna os dados formatados
+            // Faz a requisição para a API
+            $response = $this->client->get($url);
+            $dados = json_decode($response->getBody(), true);
+
+            if (!isset($dados['current_weather'])) {
+                return response()->json(['error' => 'Dados do clima não disponíveis'], 500);
+            }
+
+            // Retorna os dados do clima atual
             return response()->json([
-                'cidade' => $dados['name'],
-                'pais' => $dados['sys']['country'],
-                'temperatura' => $dados['main']['temp'],
-                'umidade' => $dados['main']['humidity'],
-                'descricao' => $dados['weather'][0]['description']
+                'temperatura' => $dados['current_weather']['temperature'],
+                'velocidade_vento' => $dados['current_weather']['windspeed'],
+                'direcao_vento' => $dados['current_weather']['winddirection'],
+                'codigo_clima' => $dados['current_weather']['weathercode']
             ]);
-
         } catch (RequestException $e) {
-            // Se a API do OpenWeather retornar erro, captura a resposta
-            $statusCode = $e->getResponse() ? $e->getResponse()->getStatusCode() : 500;
-
-            return response()->json(['erro' => 'Erro ao buscar clima. Tente novamente mais tarde.'], $statusCode);
+            return response()->json(['error' => 'Erro ao buscar o clima atual'], 500);
         }
     }
 
+    // Rota para buscar a previsão de 7 dias
     public function previsaoSeteDias(Request $request)
     {
-        $cidade = $request->get('cidade', 'Brasília');
-        $res = $this->chamarApi("https://api.openweathermap.org/data/2.5/forecast/daily?q={$cidade}&cnt=7&appid={$this->apiKey}&units=metric");
+        try {
+            $lat = $request->get('lat');
+            $lon = $request->get('lon');
 
-        if (!$res) {
-            return response()->json(['erro' => 'Cidade não encontrada'], 404);
+            if (!$lat || !$lon) {
+                return response()->json(['error' => 'Coordenadas não informadas'], 400);
+            }
+
+            // URL da API Open-Meteo para buscar a previsão de 7 dias
+            $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto";
+
+            // Faz a requisição para a API
+            $response = $this->client->get($url);
+            $dados = json_decode($response->getBody(), true);
+
+            if (!isset($dados['daily'])) {
+                return response()->json(['error' => 'Dados da previsão não disponíveis'], 500);
+            }
+
+            // Formata os dados da previsão
+            $previsao = [];
+            foreach ($dados['daily']['time'] as $index => $dia) {
+                $previsao[] = [
+                    'data' => $dia,
+                    'temperatura_max' => $dados['daily']['temperature_2m_max'][$index],
+                    'temperatura_min' => $dados['daily']['temperature_2m_min'][$index],
+                    'codigo_clima' => $dados['daily']['weathercode'][$index]
+                ];
+            }
+
+            return response()->json($previsao);
+        } catch (RequestException $e) {
+            return response()->json(['error' => 'Erro ao buscar a previsão de 7 dias'], 500);
         }
-
-        $previsao = array_map(function ($dia) {
-            return [
-                'dia' => date('l', $dia['dt']),
-                'temperatura' => $dia['temp']['day'] . '°C',
-                'descricao' => $dia['weather'][0]['description']
-            ];
-        }, $res['list']);
-
-        return response()->json(['cidade' => $cidade, 'previsao' => $previsao]);
     }
 
+    // Rota para buscar a temperatura de ontem
     public function temperaturaOntem(Request $request)
     {
-        $cidade = $request->get('cidade', 'Brasília');
-        $lat = $request->get('lat');
-        $lon = $request->get('lon');
+        try {
+            $lat = $request->get('lat');
+            $lon = $request->get('lon');
 
-        if (!$lat || !$lon) {
-            return response()->json(['erro' => 'Coordenadas necessárias'], 400);
+            if (!$lat || !$lon) {
+                return response()->json(['error' => 'Coordenadas não informadas'], 400);
+            }
+
+            // Calcula a data de ontem
+            $ontem = date('Y-m-d', strtotime('-1 day'));
+
+            // URL da API Open-Meteo para buscar o histórico de temperatura
+            $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&start_date={$ontem}&end_date={$ontem}&daily=temperature_2m_max,temperature_2m_min&timezone=auto";
+
+            // Faz a requisição para a API
+            $response = $this->client->get($url);
+            $dados = json_decode($response->getBody(), true);
+
+            if (!isset($dados['daily'])) {
+                return response()->json(['error' => 'Dados de temperatura não disponíveis'], 500);
+            }
+
+            // Retorna a temperatura de ontem
+            return response()->json([
+                'data' => $ontem,
+                'temperatura_max' => $dados['daily']['temperature_2m_max'][0],
+                'temperatura_min' => $dados['daily']['temperature_2m_min'][0]
+            ]);
+        } catch (RequestException $e) {
+            return response()->json(['error' => 'Erro ao buscar a temperatura de ontem'], 500);
         }
-
-        $ontem = time() - (24 * 60 * 60);
-        $res = $this->chamarApi("https://api.open-meteo.com/v1/history?latitude={$lat}&longitude={$lon}&start={$ontem}&end={$ontem}&appid={$this->apiKey}&units=metric");
-
-        if (!$res) {
-            return response()->json(['erro' => 'Dados indisponíveis'], 404);
-        }
-
-        return response()->json(['cidade' => $cidade, 'temperatura_media' => "{$res['temperature']}°C"]);
     }
 
     public function converterTemperatura(Request $request)
@@ -142,22 +143,6 @@ class ClimaController extends BaseController
         return response()->json(['temperatura_original' => "{$temperatura}°C", 'convertida' => $resultado]);
     }
 
-    public function nascerPorSol(Request $request)
-    {
-        $cidade = $request->get('cidade', 'Brasília');
-        $dados = $this->obterClimaAtual($cidade);
-
-        if (!$dados) {
-            return response()->json(['erro' => 'Cidade não encontrada'], 404);
-        }
-
-        return response()->json([
-            'cidade' => $cidade,
-            'nascer_do_sol' => date('H:i', $dados['nascer_do_sol']),
-            'por_do_sol' => date('H:i', $dados['por_do_sol']),
-        ]);
-    }
-
     public function previsaoChuva(Request $request)
     {
         $cidade = $request->get('cidade', 'Brasília');
@@ -170,45 +155,6 @@ class ClimaController extends BaseController
         }
 
         return response()->json(['cidade' => $cidade, 'previsao' => "Sem previsão de chuva"]);
-    }
-
-    public function compararTemperatura(Request $request)
-    {
-        $cidade = $request->get('cidade', 'Brasília');
-        $dadosHoje = $this->obterClimaAtual($cidade);
-        $dadosOntem = $this->temperaturaOntem($request)->original;
-
-        if (!$dadosHoje || !$dadosOntem) {
-            return response()->json(['erro' => 'Dados indisponíveis'], 404);
-        }
-
-        $comparacao = $dadosHoje['temperatura'] > $dadosOntem['temperatura_media'] ? "mais quente" : "mais frio";
-        return response()->json(['cidade' => $cidade, 'ontem' => $dadosOntem['temperatura_media'], 'hoje' => "{$dadosHoje['temperatura']}°C", 'comparacao' => "Hoje está $comparacao que ontem."]);
-    }
-
-    private function obterClimaAtual($cidade)
-    {
-        $res = $this->chamarApi("https://api.openweathermap.org/data/2.5/weather?q={$cidade}&appid={$this->apiKey}&units=metric");
-
-        return $res ? [
-            'cidade' => $cidade,
-            'pais' => $res['sys']['country'],
-            'temperatura' => $res['main']['temp'],
-            'umidade' => $res['main']['humidity'],
-            'descricao' => $res['weather'][0]['description'],
-            'nascer_do_sol' => $res['sys']['sunrise'],
-            'por_do_sol' => $res['sys']['sunset'],
-        ] : null;
-    }
-
-    private function chamarApi($url)
-    {
-        try {
-            $res = $this->client->get($url);
-            return json_decode($res->getBody(), true);
-        } catch (RequestException $e) {
-            return null;
-        }
     }
 
 }
