@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>API de Clima</title>
+</head>
+<body class="flex items-center justify-center h-screen bg-blue-200">
+    <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+        <h1 class="text-xl font-bold">Consultar Clima</h1>
+        <input id="cidade" type="text" placeholder="Digite uma cidade" class="border p-2 m-2" oninput="buscarSugestoes()">        <ul id="sugestoes" class="text-left border bg-white max-h-40 overflow-y-auto"></ul>
+        <div id="resultado" class="mt-4"></div>
+    </div>
+
+    <script>
+        // Função para buscar sugestões de cidades enquanto o usuário digita
+        function buscarSugestoes() {
+            let cidade = document.getElementById('cidade').value;
+
+            if (cidade.length < 2) {
+                document.getElementById('sugestoes').innerHTML = '';
+                return;
+            }
+
+            console.log(`Buscando sugestões para: ${cidade}`); // Adicione este log para verificar
+
+            fetch(`http://localhost:8000/api/sugestoes?query=${cidade}`)
+                .then(res => res.json())
+                .then(data => {
+                    console.log(data); // Verifique se os dados estão sendo retornados
+                    let sugestoesHTML = data.map(cidade => `
+                        <li class="p-2 cursor-pointer hover:bg-blue-100" onclick="buscarClima('${cidade.name}', ${cidade.lat}, ${cidade.lon})">
+                            ${cidade.name}, ${cidade.country}
+                        </li>
+                    `).join('');
+                    document.getElementById('sugestoes').innerHTML = sugestoesHTML;
+                })
+                .catch(err => console.log(err));
+        }
+
+        // Função para buscar o clima de uma cidade selecionada
+        function buscarClima(nome, lat, lon) {
+            console.log(`Buscando clima para: ${nome}, lat: ${lat}, lon: ${lon}`); // Adicione este log para verificar
+
+            document.getElementById('cidade').value = nome;
+            document.getElementById('sugestoes').innerHTML = '';
+
+            fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`)
+                .then(res => res.json())
+                .then(data => {
+                    console.log(data); // Verifique se os dados estão sendo retornados
+                    document.getElementById('resultado').innerHTML = `
+                        <div class="p-4 bg-gray-100 rounded-lg">
+                            <p class="font-bold text-lg">${data.name}, ${data.sys.country}</p>
+                            <p>Temperatura: <span class="font-semibold">${data.main.temp}°C</span></p>
+                            <p>Umidade: <span class="font-semibold">${data.main.humidity}%</span></p>
+                            <p>Descrição: <span class="font-semibold">${data.weather[0].description}</span></p>
+                        </div>`;
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('resultado').innerHTML = `
+                        <p class="text-red-500">Erro ao buscar o clima. Tente novamente.</p>`;
+                });
+        }
+    </script>
+</body>
+</html>
