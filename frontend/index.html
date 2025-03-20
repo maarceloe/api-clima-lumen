@@ -45,21 +45,64 @@
 
     <script>
         const weatherDescriptions = {
-            0: "Céu limpo",
-            1: "Principalmente limpo",
-            2: "Parcialmente nublado",
-            3: "Nublado",
-            45: "Nevoeiro",
-            48: "Nevoeiro com geada",
-            51: "Chuvisco leve",
-            53: "Chuvisco moderado",
-            55: "Chuvisco intenso",
-            61: "Chuva leve",
-            63: "Chuva moderada",
-            65: "Chuva forte",
-            80: "Pancadas de chuva leves",
-            81: "Pancadas de chuva moderadas",
-            82: "Pancadas de chuva fortes",
+            0: "☀️ Céu limpo", // Céu limpo
+            1: "🌤️ Parcialmente limpo", // Principalmente limpo
+            2: "⛅ Parcialmente nublado", // Parcialmente nublado
+            3: "☁️ Nublado", // Nublado
+            45: "🌫️ Nevoeiro", // Nevoeiro
+            48: "🌫️❄️ Nevoeiro com geada", // Nevoeiro com geada
+            51: "🌦️ Chuvisco leve", // Chuvisco leve
+            53: "🌧️ Chuvisco moderado", // Chuvisco moderado
+            55: "🌧️ Chuvisco intenso", // Chuvisco intenso
+            56: "🌨️ Chuvisco congelante leve", // Chuvisco congelante leve
+            57: "🌨️ Chuvisco congelante intenso", // Chuvisco congelante intenso
+            61: "🌧️ Chuva leve", // Chuva leve
+            63: "🌧️ Chuva moderada", // Chuva moderada
+            65: "🌧️ Chuva forte", // Chuva forte
+            66: "🌨️ Chuva congelante leve", // Chuva congelante leve
+            67: "🌨️ Chuva congelante forte", // Chuva congelante forte
+            71: "❄️ Neve leve", // Neve leve
+            73: "❄️ Neve moderada", // Neve moderada
+            75: "❄️ Neve forte", // Neve forte
+            77: "🌨️ Granizo", // Granizo
+            80: "🌦️ Pancadas de chuva leves", // Pancadas de chuva leves
+            81: "🌦️ Pancadas de chuva moderadas", // Pancadas de chuva moderadas
+            82: "🌦️ Pancadas de chuva fortes", // Pancadas de chuva fortes
+            86: "❄️ Pancadas de neve fortes", // Pancadas de neve fortes
+            95: "⛈️ Tempestade leve ou moderada", // Tempestade leve ou moderada
+            96: "⛈️ Tempestade com granizo leve", // Tempestade com granizo leve
+            99: "⛈️ Tempestade com granizo forte", // Tempestade com granizo forte
+        };
+
+        const weatherIcons = {
+            0: "☀️", // Céu limpo
+            1: "🌤️", // Principalmente limpo
+            2: "⛅", // Parcialmente nublado
+            3: "☁️", // Nublado
+            45: "🌫️", // Nevoeiro
+            48: "🌫️❄️", // Nevoeiro com geada
+            51: "🌦️", // Chuvisco leve
+            53: "🌧️", // Chuvisco moderado
+            55: "🌧️", // Chuvisco intenso
+            56: "🌨️", // Chuvisco congelante leve
+            57: "🌨️", // Chuvisco congelante intenso
+            61: "🌧️", // Chuva leve
+            63: "🌧️", // Chuva moderada
+            65: "🌧️", // Chuva forte
+            66: "🌨️", // Chuva congelante leve
+            67: "🌨️", // Chuva congelante forte
+            71: "❄️", // Neve leve
+            73: "❄️", // Neve moderada
+            75: "❄️", // Neve forte
+            77: "🌨️", // Granizo
+            80: "🌦️", // Pancadas de chuva leves
+            81: "🌦️", // Pancadas de chuva moderadas
+            82: "🌦️", // Pancadas de chuva fortes
+            85: "❄️", // Pancadas de neve leves
+            86: "❄️", // Pancadas de neve fortes
+            95: "⛈️", // Tempestade leve ou moderada
+            96: "⛈️", // Tempestade com granizo leve
+            99: "⛈️", // Tempestade com granizo forte
         };
 
         // Função para obter a localização do usuário
@@ -198,12 +241,25 @@
                     51: "🌦️", // Chuvisco leve
                     53: "🌧️", // Chuvisco moderado
                     55: "🌧️", // Chuvisco intenso
+                    56: "🌨️", // Chuvisco congelante leve
+                    57: "🌨️", // Chuvisco congelante intenso
                     61: "🌧️", // Chuva leve
                     63: "🌧️", // Chuva moderada
                     65: "🌧️", // Chuva forte
+                    66: "🌨️", // Chuva congelante leve
+                    67: "🌨️", // Chuva congelante forte
+                    71: "❄️", // Neve leve
+                    73: "❄️", // Neve moderada
+                    75: "❄️", // Neve forte
+                    77: "🌨️", // Granizo
                     80: "🌦️", // Pancadas de chuva leves
                     81: "🌦️", // Pancadas de chuva moderadas
                     82: "🌦️", // Pancadas de chuva fortes
+                    85: "❄️", // Pancadas de neve leves
+                    86: "❄️", // Pancadas de neve fortes
+                    95: "⛈️", // Tempestade leve ou moderada
+                    96: "⛈️", // Tempestade com granizo leve
+                    99: "⛈️", // Tempestade com granizo forte
                 };
 
                 // Variáveis para o carrossel
@@ -218,7 +274,7 @@
 
                     const previsaoHTML = diasExibidos.map((dia, index) => `
                         <div class="p-2 bg-gray-100 rounded-lg flex flex-col items-center space-y-2 w-80 h-50">
-                            <span class="text-3xl">${weatherIcons[dados.weathercode[inicio + index]] || "❓"}</span>
+                            <span class="text-3xl">${weatherIcons[dados.weathercode[inicio + index]]}</span>
                             <div class="align-middle items-center">
                                 <p>${new Date(dia).toLocaleDateString('pt-BR')}</p>
                                 <p>Máx: ${dados.temperature_2m_max[inicio + index]}°C</p>
