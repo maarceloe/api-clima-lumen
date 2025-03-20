@@ -101,7 +101,11 @@ class ClimaController extends BaseController
             return response()->json(['error' => 'Coordenadas não informadas'], 400);
         }
 
-        $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto";
+        // Calcula as datas de início e fim
+        $hoje = date('Y-m-d');
+        $seteDiasDepois = date('Y-m-d', strtotime('+7 days'));
+
+        $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&start_date={$hoje}&end_date={$seteDiasDepois}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto";
 
         try {
             $response = $this->client->get($url);
@@ -112,8 +116,8 @@ class ClimaController extends BaseController
             }
 
             return response()->json($dados['daily']);
-        } catch (RequestException $e) {
-            return response()->json(['error' => 'Erro ao buscar a previsão de 7 dias'], 500);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Erro ao buscar a previsão de 7 dias', 'details' => $e->getMessage()], 500);
         }
     }
 

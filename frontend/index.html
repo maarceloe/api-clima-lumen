@@ -121,7 +121,8 @@
 
                         // Chama as funções para buscar os dados com base na localização
                         buscarClima(lat, lon, "resultado-local", true);
-                        buscarPrevisao(lat, lon); // Adiciona a previsão de 7 dias
+                        buscarPrevisao(lat, lon);
+                        buscarComparacao(lat, lon); // Passa as coordenadas para buscarComparacao
                     },
                     (error) => {
                         console.error('Erro ao obter localização:', error);
@@ -143,7 +144,12 @@
             }
 
             fetch(`/api/sugestoes?query=${cidade}`)
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`Erro na requisição: ${res.status} ${res.statusText}`);
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     if (data.length === 0) {
                         document.getElementById('sugestoes').innerHTML = '<li class="p-2 text-gray-500">Nenhuma cidade encontrada.</li>';
@@ -166,8 +172,11 @@
 
         // Função para selecionar uma cidade
         function selecionarCidade(lat, lon, nome, estado, pais) {
+            // Atualiza o campo de entrada com o nome da cidade selecionada
             document.getElementById('cidade').value = `${nome}, ${estado}, ${pais}`;
             document.getElementById('sugestoes').innerHTML = '';
+
+            // Chama as funções para buscar os dados da cidade selecionada
             buscarClima(lat, lon, "resultado-cidade");
             buscarPrevisao(lat, lon);
             buscarComparacao(lat, lon);
@@ -323,21 +332,35 @@
 
             try {
                 let resposta = await fetch(`/api/comparar-temperatura?lat=${lat}&lon=${lon}`);
+
+                if (!resposta.ok) {
+                    throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
+                }
+
                 let dados = await resposta.json();
 
                 if (dados.error) {
                     throw new Error(dados.error);
                 }
 
+                // Exibe os dados na tela
                 document.getElementById('comparacao-container').innerHTML = `
                     <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
-                        <p><strong>Ontem:</strong> ${dados.ontem}°C</p>
-                        <p><strong>Hoje:</strong> ${dados.hoje}°C</p>
-                        <p><strong>Diferença:</strong> ${dados.diferenca}°C</p>
+                        <p><strong>Cidade:</strong> ${dados.cidade}</p>
+                        <p><strong>Ontem:</strong> ${dados.ontem}</p>
+                        <p><strong>Hoje:</strong> ${dados.hoje}</p>
+                        <p><strong>Comparação:</strong> ${dados.comparacao}</p>
                     </div>`;
+
+                // Retorna o JSON no console (opcional)
+                console.log(dados);
+                return dados;
             } catch (error) {
                 console.error('Erro ao buscar a comparação de temperaturas:', error);
-                document.getElementById('comparacao-container').innerHTML = `<p class="text-red-500">Erro ao buscar a comparação de temperaturas.</p>`;
+
+                // Exibe o erro na tela
+                document.getElementById('comparacao-container').innerHTML = `
+                    <p class="text-red-500">Erro ao buscar a comparação de temperaturas: ${error.message}</p>`;
             }
         }
 
