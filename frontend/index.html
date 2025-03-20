@@ -6,33 +6,42 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <title>API de Clima</title>
 </head>
-<body class="bg-blue-200 h-screen flex flex-col items-center justify-center">
-    <!-- Clima Atual -->
-    <div id="clima-atual" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 mb-4">
-        <h1 class="text-xl font-bold">Clima Atual</h1>
-        <p id="localizacao" class="text-gray-500 mb-2">Obtendo sua localização...</p>
-        <div id="resultado-local" class="mt-2"></div>
+<body class="bg-blue-200">
+    <div class="flex flex-row items-center justify-start p-2 w-50">
+        <!-- Clima Atual -->
+        <div id="clima-atual" class="bg-white p-6 rounded-lg shadow-lg text-center mb-4 w-96 h-60">
+            <h1 class="text-xl font-bold">Clima Atual</h1>
+            <p id="localizacao" class="text-gray-500 mb-2">Obtendo sua localização...</p>
+            <div id="resultado-local" class="mt-2"></div>
+        </div>
     </div>
 
-    <!-- Pesquisa de clima por cidade -->
-    <div class="bg-white p-6 rounded-lg shadow-lg text-center w-96 mb-4">
-        <h1 class="text-xl font-bold">Pesquisar Clima</h1>
-        <input id="cidade" type="text" placeholder="Digite o nome da cidade" class="border p-2 w-full mt-4 mb-4" oninput="buscarSugestoes()">
-        <ul id="sugestoes" class="text-left border bg-white max-h-40 overflow-y-auto"></ul>
-        <div id="resultado-cidade" class="mt-4"></div>
+    <div class="flex flex-row items-center justify-center space-x-4">
+        <!-- Pesquisa de clima por cidade -->
+        <div id="pesquisa-clima" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-80">
+            <h1 class="text-xl font-bold">Pesquisar Clima</h1>
+            <input id="cidade" type="text" placeholder="Digite o nome da cidade" class="border p-2 w-full mt-4 mb-4" oninput="buscarSugestoes()">
+            <ul id="sugestoes" class="text-left border bg-white max-h-40 overflow-y-auto"></ul>
+            <div id="resultado-cidade" class="mt-4"></div>
+        </div>
+
+        <!-- Previsão de 7 Dias -->
+        <div id="previsao-7-dias" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-80">
+            <h1 class="text-xl font-bold mb-6">Previsão para os Próximos 7 Dias</h1>
+            <div id="previsao-container" class="flex gap-4 mt-4 overflow-x-auto"></div>
+            <div id="botoes-navegacao" class="flex justify-between mt-4 hidden">
+                <button id="prev-btn" class="bg-blue-500 text-white px-4 py-2 rounded-lg">Anterior</button>
+                <button id="next-btn" class="bg-blue-500 text-white px-4 py-2 rounded-lg">Próximo</button>
+            </div>
+        </div>
+
+        <!-- Comparação de Temperaturas -->
+        <div id="comparacao-temperaturas" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-80">
+            <h1 class="text-xl font-bold">Comparação de Temperaturas</h1>
+            <div id="comparacao-container" class="mt-4"></div>
+        </div>
     </div>
 
-    <!-- Previsão de 7 Dias -->
-    <div id="previsao-7-dias" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 mb-4">
-        <h1 class="text-xl font-bold">Previsão para os Próximos 7 Dias</h1>
-        <div id="previsao-container" class="grid grid-cols-2 gap-4 mt-4"></div>
-    </div>
-
-    <!-- Comparação de Temperaturas -->
-    <div id="comparacao-temperaturas" class="bg-white p-6 rounded-lg shadow-lg text-center w-96">
-        <h1 class="text-xl font-bold">Comparação de Temperaturas</h1>
-        <div id="comparacao-container" class="mt-4"></div>
-    </div>
 
     <script>
         const weatherDescriptions = {
@@ -69,6 +78,7 @@
 
                         // Chama as funções para buscar os dados com base na localização
                         buscarClima(lat, lon, "resultado-local", true);
+                        buscarPrevisao(lat, lon); // Adiciona a previsão de 7 dias
                     },
                     (error) => {
                         console.error('Erro ao obter localização:', error);
@@ -129,10 +139,8 @@
             }
 
             try {
-                // Use a URL completa para evitar problemas de caminho relativo
                 let resposta = await fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`);
 
-                // Verifica se a resposta é JSON
                 if (!resposta.ok) {
                     throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
                 }
@@ -151,7 +159,7 @@
 
                 // Atualiza o elemento com os dados do clima
                 document.getElementById(resultadoId).innerHTML = `
-                    <div class="p-4 bg-gray-100 rounded-lg">
+                    <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
                         <p><strong>Temperatura:</strong> ${dados.temperature}°C</p>
                         <p><strong>Velocidade do Vento:</strong> ${dados.windspeed} km/h</p>
                         <p><strong>Direção do Vento:</strong> ${dados.winddirection}°</p>
@@ -172,23 +180,77 @@
             }
 
             try {
-                let resposta = await fetch(`/api/previsao?lat=${lat}&lon=${lon}`);
+                let resposta = await fetch(`http://localhost:8000/api/previsao?lat=${lat}&lon=${lon}`);
                 let dados = await resposta.json();
 
                 if (dados.error) {
                     throw new Error(dados.error);
                 }
 
-                let previsaoHTML = dados.time.map((dia, index) => `
-                    <div class="p-2 bg-gray-100 rounded-lg">
-                        <p>${new Date(dia).toLocaleDateString('pt-BR')}</p>
-                        <p>Máx: ${dados.temperature_2m_max[index]}°C</p>
-                        <p>Mín: ${dados.temperature_2m_min[index]}°C</p>
-                        <p>${weatherDescriptions[dados.weathercode[index]] || "Condição desconhecida"}</p>
-                    </div>
-                `).join('');
+                // Mapeia os códigos de condição climática para ícones
+                const weatherIcons = {
+                    0: "☀️", // Céu limpo
+                    1: "🌤️", // Principalmente limpo
+                    2: "⛅", // Parcialmente nublado
+                    3: "☁️", // Nublado
+                    45: "🌫️", // Nevoeiro
+                    48: "🌫️❄️", // Nevoeiro com geada
+                    51: "🌦️", // Chuvisco leve
+                    53: "🌧️", // Chuvisco moderado
+                    55: "🌧️", // Chuvisco intenso
+                    61: "🌧️", // Chuva leve
+                    63: "🌧️", // Chuva moderada
+                    65: "🌧️", // Chuva forte
+                    80: "🌦️", // Pancadas de chuva leves
+                    81: "🌦️", // Pancadas de chuva moderadas
+                    82: "🌦️", // Pancadas de chuva fortes
+                };
 
-                document.getElementById('previsao-container').innerHTML = previsaoHTML;
+                // Variáveis para o carrossel
+                const diasPorPagina = 3;
+                let paginaAtual = 0;
+
+                // Função para renderizar os dias no carrossel
+                function renderizarPrevisao() {
+                    const inicio = paginaAtual * diasPorPagina;
+                    const fim = inicio + diasPorPagina;
+                    const diasExibidos = dados.time.slice(inicio, fim);
+
+                    const previsaoHTML = diasExibidos.map((dia, index) => `
+                        <div class="p-2 bg-gray-100 rounded-lg flex flex-col items-center space-y-2 w-80 h-50">
+                            <span class="text-3xl">${weatherIcons[dados.weathercode[inicio + index]] || "❓"}</span>
+                            <div class="align-middle items-center">
+                                <p>${new Date(dia).toLocaleDateString('pt-BR')}</p>
+                                <p>Máx: ${dados.temperature_2m_max[inicio + index]}°C</p>
+                                <p>Mín: ${dados.temperature_2m_min[inicio + index]}°C</p>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('previsao-container').innerHTML = previsaoHTML;
+
+                    // Exibe os botões de navegação após o carregamento
+                    document.getElementById('botoes-navegacao').classList.remove('hidden');
+                }
+
+                // Função para navegar para a página anterior
+                document.getElementById('prev-btn').onclick = () => {
+                    if (paginaAtual > 0) {
+                        paginaAtual--;
+                        renderizarPrevisao();
+                    }
+                };
+
+                // Função para navegar para a próxima página
+                document.getElementById('next-btn').onclick = () => {
+                    if ((paginaAtual + 1) * diasPorPagina < dados.time.length) {
+                        paginaAtual++;
+                        renderizarPrevisao();
+                    }
+                };
+
+                // Renderiza a previsão inicial
+                renderizarPrevisao();
             } catch (error) {
                 console.error('Erro ao buscar a previsão:', error);
                 document.getElementById('previsao-container').innerHTML = `<p class="text-red-500">Erro ao buscar a previsão.</p>`;
@@ -212,10 +274,11 @@
                 }
 
                 document.getElementById('comparacao-container').innerHTML = `
-                    <p>Ontem: ${dados.ontem}°C</p>
-                    <p>Hoje: ${dados.hoje}°C</p>
-                    <p>Diferença: ${dados.diferenca}°C</p>
-                `;
+                    <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
+                        <p><strong>Ontem:</strong> ${dados.ontem}°C</p>
+                        <p><strong>Hoje:</strong> ${dados.hoje}°C</p>
+                        <p><strong>Diferença:</strong> ${dados.diferenca}°C</p>
+                    </div>`;
             } catch (error) {
                 console.error('Erro ao buscar a comparação de temperaturas:', error);
                 document.getElementById('comparacao-container').innerHTML = `<p class="text-red-500">Erro ao buscar a comparação de temperaturas.</p>`;
