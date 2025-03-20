@@ -18,7 +18,7 @@
 
     <div class="flex flex-row items-center justify-center space-x-4">
         <!-- Pesquisa de clima por cidade -->
-        <div id="pesquisa-clima" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-80">
+        <div id="pesquisa-clima" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-96">
             <h1 class="text-xl font-bold">Pesquisar Clima</h1>
             <input id="cidade" type="text" placeholder="Digite o nome da cidade" class="border p-2 w-full mt-4 mb-4" oninput="buscarSugestoes()">
             <ul id="sugestoes" class="text-left border bg-white max-h-40 overflow-y-auto"></ul>
@@ -26,7 +26,7 @@
         </div>
 
         <!-- Previsão de 7 Dias -->
-        <div id="previsao-7-dias" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-80">
+        <div id="previsao-7-dias" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-96">
             <h1 class="text-xl font-bold mb-6">Previsão para os Próximos 7 Dias</h1>
             <div id="previsao-container" class="flex gap-4 mt-4 overflow-x-auto"></div>
             <div id="botoes-navegacao" class="flex justify-between mt-4 hidden">
@@ -36,7 +36,7 @@
         </div>
 
         <!-- Comparação de Temperaturas -->
-        <div id="comparacao-temperaturas" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-80">
+        <div id="comparacao-temperaturas" class="bg-white p-6 rounded-lg shadow-lg text-center w-96 h-96">
             <h1 class="text-xl font-bold">Comparação de Temperaturas</h1>
             <div id="comparacao-container" class="mt-4"></div>
         </div>
@@ -123,6 +123,7 @@
                         buscarClima(lat, lon, "resultado-local", true);
                         buscarPrevisao(lat, lon);
                         buscarComparacao(lat, lon); // Passa as coordenadas para buscarComparacao
+                        buscarNomeCidadeEstado(lat, lon);
                     },
                     (error) => {
                         console.error('Erro ao obter localização:', error);
@@ -194,19 +195,29 @@
             document.getElementById(resultadoId).innerHTML = '';
 
             try {
-                let resposta = await fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`);
+                let respostaClima = await fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`);
+                let respostaSol = await fetch(`http://localhost:8000/api/nascer-por-sol?lat=${lat}&lon=${lon}`);
 
-                if (!resposta.ok) {
-                    throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
+                if (!respostaClima.ok) {
+                    throw new Error(`Erro na requisição do clima: ${respostaClima.status} ${respostaClima.statusText}`);
                 }
 
-                let dados = await resposta.json();
-
-                if (dados.error) {
-                    throw new Error(dados.error);
+                if (!respostaSol.ok) {
+                    throw new Error(`Erro na requisição do nascer/pôr do sol: ${respostaSol.status} ${respostaSol.statusText}`);
                 }
 
-                const descricao = weatherDescriptions[dados.weathercode] || "Condição desconhecida";
+                let dadosClima = await respostaClima.json();
+                let dadosSol = await respostaSol.json();
+
+                if (dadosClima.error) {
+                    throw new Error(dadosClima.error);
+                }
+
+                if (dadosSol.error) {
+                    throw new Error(dadosSol.error);
+                }
+
+                const descricao = weatherDescriptions[dadosClima.weathercode] || "Condição desconhecida";
 
                 // Função para obter o ícone da direção do vento
                 function getWindDirectionIcon(direction) {
@@ -220,21 +231,23 @@
                     if (direction >= 292.5 && direction < 337.5) return "↖️ Noroeste";
                 }
 
-                const direcaoVentoIcone = getWindDirectionIcon(dados.winddirection);
+                const direcaoVentoIcone = getWindDirectionIcon(dadosClima.winddirection);
 
                 if (isLocal) {
-                    document.getElementById('localizacao').innerText = `Clima Atual para sua localização (${dados.city || 'Local desconhecido'})`;
+                    document.getElementById('localizacao').innerText = `Clima Atual para sua localização (${dadosClima.city || 'Local desconhecido'}, ${dadosClima.state || ''})`;
                 }
 
                 // Atualiza o elemento com os dados do clima
                 document.getElementById(resultadoId).innerHTML = `
                     <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
-                        <p><strong>Cidade:</strong> ${dados.city || 'Desconhecida'}</p>
-                        <p><strong>Temperatura:</strong> ${dados.temperature}°C</p>
-                        <p><strong>Umidade:</strong> ${dados.humidity || 'N/A'}%</p>
-                        <p><strong>Velocidade do Vento:</strong> ${dados.windspeed} km/h</p>
+                        <p><strong>Cidade:</strong> ${dadosClima.city || 'Local desconhecido'}, ${dadosClima.state || ''}</p>
+                        <p><strong>Temperatura:</strong> ${dadosClima.temperature}°C</p>
+                        <p><strong>Umidade:</strong> ${dadosClima.humidity || 'N/A'}%</p>
+                        <p><strong>Velocidade do Vento:</strong> ${dadosClima.windspeed} km/h</p>
                         <p><strong>Direção do Vento:</strong> ${direcaoVentoIcone}</p>
                         <p><strong>Condição:</strong> ${descricao}</p>
+                        <p><strong>Nascer do Sol:</strong> ${new Date(dadosSol.nascer_do_sol).toLocaleTimeString('pt-BR')}</p>
+                        <p><strong>Pôr do Sol:</strong> ${new Date(dadosSol.por_do_sol).toLocaleTimeString('pt-BR')}</p>
                     </div>`;
             } catch (error) {
                 console.error('Erro ao buscar o clima:', error);
@@ -348,20 +361,20 @@
                 document.getElementById('comparacao-container').innerHTML = `<p class="text-red-500">Erro: Coordenadas inválidas.</p>`;
                 return;
             }
-        
+
             try {
                 let resposta = await fetch(`http://localhost:8000/api/comparar-temperatura?lat=${lat}&lon=${lon}`);
-            
+
                 if (!resposta.ok) {
                     throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
                 }
-            
+
                 let dados = await resposta.json();
-            
+
                 if (dados.error) {
                     throw new Error(dados.error);
                 }
-            
+
                 // Exibe os dados na tela
                 document.getElementById('comparacao-container').innerHTML = `
                     <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
@@ -373,6 +386,34 @@
                 console.error('Erro ao buscar a comparação de temperaturas:', error);
                 document.getElementById('comparacao-container').innerHTML = `
                     <p class="text-red-500">Erro ao buscar a comparação de temperaturas: ${error.message}</p>`;
+            }
+        }
+
+        async function buscarNomeCidadeEstado(lat, lon) {
+            if (!lat || !lon) {
+                console.error('Coordenadas inválidas fornecidas para buscarNomeCidadeEstado.');
+                document.getElementById('localizacao').innerText = 'Erro: Coordenadas inválidas.';
+                return;
+            }
+
+            try {
+                let resposta = await fetch(`http://localhost:8000/api/nome-cidade?lat=${lat}&lon=${lon}`);
+
+                if (!resposta.ok) {
+                    throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
+                }
+
+                let dados = await resposta.json();
+
+                if (dados.error) {
+                    throw new Error(dados.error);
+                }
+
+                // Atualiza o elemento com o nome da cidade e do estado
+                document.getElementById('localizacao').innerText = `Localização: ${dados.cidade}, ${dados.estado || ''}`;
+            } catch (error) {
+                console.error('Erro ao buscar o nome da cidade:', error);
+                document.getElementById('localizacao').innerText = 'Erro ao buscar o nome da cidade.';
             }
         }
 

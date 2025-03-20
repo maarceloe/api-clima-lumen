@@ -125,27 +125,50 @@ $router->get('/api/clima-atual', function (\Illuminate\Http\Request $request) {
         return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
     }
 
-    $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
-    $urlGeocoding = "https://geocoding-api.open-meteo.com/v1/reverse?latitude={$lat}&longitude={$lon}&language=pt&format=json";
+    // Corrigir possíveis problemas na URL
+    $urlClima = "https://api.open-meteo.com/v1/forecast?latitude=" . urlencode($lat) . "&longitude=" . urlencode($lon) . "&current_weather=true&timezone=auto";
+    $urlGeocoding = "https://geocoding-api.open-meteo.com/v1/reverse?latitude=" . urlencode($lat) . "&longitude=" . urlencode($lon) . "&language=pt&format=json";
 
     try {
-        // Faz a requisição para a API Open-Meteo
-        $response = file_get_contents($url);
-
-        // Verifica se a resposta é válida
-        if ($response === false) {
+        // Faz a requisição para a API de clima atual
+        $responseClima = file_get_contents($urlClima);
+        if ($responseClima === false) {
             return response()->json(['error' => 'Erro ao conectar à API Open-Meteo'], 500);
         }
-
-        $dadosClima = json_decode($response, true);
+        $dadosClima = json_decode($responseClima, true);
 
         // Verifica se os dados do clima atual estão disponíveis
         if (!isset($dadosClima['current_weather'])) {
             return response()->json(['error' => 'Dados do clima atual não disponíveis'], 500);
         }
 
+        // Faz a requisição para a API de geocodificação reversa
+        $responseGeocoding = @file_get_contents($urlGeocoding);
+
+        if ($responseGeocoding === false || empty($responseGeocoding)) {
+            error_log("Erro: API de geocodificação retornou erro 404 ou outra falha.");
+            $cidade = 'Local desconhecido';
+            $estado = null;
+        } else {
+            $dadosGeocoding = json_decode($responseGeocoding, true);
+
+            if (isset($dadosGeocoding['results']) && count($dadosGeocoding['results']) > 0) {
+                $cidade = $dadosGeocoding['results'][0]['name'] ?? 'Local desconhecido';
+                $estado = $dadosGeocoding['results'][0]['admin1'] ?? null;
+            } else {
+                $cidade = 'Local desconhecido';
+                $estado = null;
+            }
+        }
+
+        // Adiciona o nome da cidade, estado e umidade aos dados do clima
+        $dadosClima['current_weather']['city'] = $cidade;
+        $dadosClima['current_weather']['state'] = $estado;
+        $dadosClima['current_weather']['humidity'] = $dadosClima['current_weather']['relative_humidity'] ?? 'N/A';
+
         return response()->json($dadosClima['current_weather']);
     } catch (\Exception $e) {
+        error_log("Erro: " . $e->getMessage());
         return response()->json(['error' => 'Erro ao buscar o clima atual', 'details' => $e->getMessage()], 500);
     }
 });
@@ -180,5 +203,88 @@ $router->get('/api/previsao', function (\Illuminate\Http\Request $request) {
         return response()->json($dadosPrevisao['daily']);
     } catch (\Exception $e) {
         return response()->json(['error' => 'Erro ao buscar a previsão de 7 dias', 'details' => $e->getMessage()], 500);
+    }
+});
+
+// Rota para buscar os horários de nascer e pôr do sol
+$router->get('/api/nascer-por-sol', function (\Illuminate\Http\Request $request) {
+    $lat = $request->get('lat');
+    $lon = $request->get('lon');
+
+    // Validação das coordenadas
+    if (!$lat || !$lon || !is_numeric($lat) || !is_numeric($lon)) {
+        return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
+    }
+
+    // URL da API para buscar os horários de nascer e pôr do sol
+    $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&daily=sunrise,sunset&timezone=auto";
+
+    try {
+        // Faz a requisição para a API
+        $response = file_get_contents($url);
+
+        if ($response === false) {
+            return response()->json(['error' => 'Erro ao conectar à API Open-Meteo'], 500);
+        }
+
+        $dados = json_decode($response, true);
+
+        // Verifica se os dados de nascer e pôr do sol estão disponíveis
+        if (!isset($dados['daily']['sunrise']) || !isset($dados['daily']['sunset'])) {
+            return response()->json(['error' => 'Dados de nascer e pôr do sol não disponíveis'], 500);
+        }
+
+        return response()->json([
+            'nascer_do_sol' => $dados['daily']['sunrise'][0],
+            'por_do_sol' => $dados['daily']['sunset'][0],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Erro ao buscar os horários de nascer e pôr do sol', 'details' => $e->getMessage()], 500);
+    }
+});
+
+// Rota para buscar o nome da cidade
+$router->get('/api/nome-cidade', function (\Illuminate\Http\Request $request) {
+    $lat = $request->get('lat');
+    $lon = $request->get('lon');
+
+    // Validação das coordenadas
+    if (!$lat || !$lon || !is_numeric($lat) || !is_numeric($lon)) {
+        return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
+    }
+
+    // URL da API de geocodificação reversa
+    $urlGeocoding = "https://geocoding-api.open-meteo.com/v1/reverse?latitude=" . urlencode($lat) . "&longitude=" . urlencode($lon) . "&language=pt&format=json";
+
+    try {
+        // Faz a requisição para a API de geocodificação reversa
+        $responseGeocoding = @file_get_contents($urlGeocoding);
+
+        // Log da URL e resposta
+        error_log("URL Geocoding: $urlGeocoding");
+        error_log("Resposta Geocoding: $responseGeocoding");
+
+        if ($responseGeocoding === false || empty($responseGeocoding)) {
+            return response()->json(['error' => 'Erro ao conectar à API de geocodificação ou dados não encontrados'], 404);
+        }
+
+        $dadosGeocoding = json_decode($responseGeocoding, true);
+
+        // Verifica se a API de geocodificação retornou resultados
+        if (!isset($dadosGeocoding['results']) || empty($dadosGeocoding['results'])) {
+            return response()->json(['error' => 'Nenhuma cidade encontrada para as coordenadas fornecidas'], 404);
+        }
+
+        // Obtém o nome da cidade e do estado
+        $cidade = $dadosGeocoding['results'][0]['name'] ?? 'Local desconhecido';
+        $estado = $dadosGeocoding['results'][0]['admin1'] ?? null;
+
+        return response()->json([
+            'cidade' => $cidade,
+            'estado' => $estado,
+        ]);
+    } catch (\Exception $e) {
+        error_log("Erro: " . $e->getMessage());
+        return response()->json(['error' => 'Erro ao buscar o nome da cidade', 'details' => $e->getMessage()], 500);
     }
 });

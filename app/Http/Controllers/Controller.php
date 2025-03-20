@@ -69,24 +69,44 @@ class ClimaController extends BaseController
             return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
         }
 
-        $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
+        $urlClima = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
+        $urlGeocoding = "https://geocoding-api.open-meteo.com/v1/reverse?latitude={$lat}&longitude={$lon}&language=pt&format=json";
 
         try {
-            // Faz a requisição para a API Open-Meteo
-            $response = $this->client->get($url);
-            $dados = json_decode($response->getBody(), true);
+            // Faz a requisição para a API Open-Meteo (Clima Atual)
+            $responseClima = $this->client->get($urlClima);
+            $dadosClima = json_decode($responseClima->getBody(), true);
 
             // Verifica se os dados do clima atual estão disponíveis
-            if (!isset($dados['current_weather'])) {
+            if (!isset($dadosClima['current_weather'])) {
                 return response()->json(['error' => 'Dados do clima atual não disponíveis'], 500);
             }
 
-            return response()->json($dados['current_weather']);
+            // Faz a requisição para a API de Geocodificação Reversa
+            $responseGeocoding = $this->client->get($urlGeocoding);
+            $dadosGeocoding = json_decode($responseGeocoding->getBody(), true);
+
+            // Verifica se a API de geocodificação retornou resultados
+            if (!isset($dadosGeocoding['results']) || empty($dadosGeocoding['results'])) {
+                $cidade = 'Local desconhecido';
+                $estado = null;
+            } else {
+                // Obtém o nome da cidade e do estado
+                $cidade = $dadosGeocoding['results'][0]['name'] ?? 'Local desconhecido';
+                $estado = $dadosGeocoding['results'][0]['admin1'] ?? null;
+            }
+
+            // Adiciona o nome da cidade, estado e umidade aos dados do clima
+            $dadosClima['current_weather']['city'] = $cidade;
+            $dadosClima['current_weather']['state'] = $estado;
+
+            // Verifica se a umidade está disponível
+            $dadosClima['current_weather']['humidity'] = $dadosClima['current_weather']['relative_humidity'] ?? 'N/A';
+
+            return response()->json($dadosClima['current_weather']);
         } catch (RequestException $e) {
-            // Captura erros de requisição e retorna detalhes
             return response()->json(['error' => 'Erro ao buscar o clima atual', 'details' => $e->getMessage()], 500);
         } catch (\Exception $e) {
-            // Captura outros erros e retorna detalhes
             return response()->json(['error' => 'Erro ao buscar o clima atual', 'details' => $e->getMessage()], 500);
         }
     }
