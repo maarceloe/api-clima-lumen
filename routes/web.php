@@ -38,21 +38,21 @@ $router->get('/api/comparar-temperatura', function (\Illuminate\Http\Request $re
 
     try {
         $response = file_get_contents($url);
+
+        // Verifica se a resposta é válida
+        if ($response === false) {
+            return response()->json(['error' => 'Erro ao conectar à API de previsão'], 500);
+        }
+
         $dados = json_decode($response, true);
 
-        if (!isset($dados['daily']['temperature_2m_max'])) {
-            return response()->json(['error' => 'Dados de temperatura não disponíveis'], 500);
+        // Verifica se os dados necessários estão disponíveis
+        if (!isset($dados['daily']['temperature_2m_max']) || count($dados['daily']['temperature_2m_max']) < 2) {
+            return response()->json(['error' => 'Dados de temperatura não disponíveis ou incompletos'], 500);
         }
 
         $ontemTemp = $dados['daily']['temperature_2m_max'][0];
         $hojeTemp = $dados['daily']['temperature_2m_max'][1];
-
-        // Obter o nome da cidade usando a API de geocodificação
-        $geocodingUrl = "https://geocoding-api.open-meteo.com/v1/reverse?latitude={$lat}&longitude={$lon}&language=pt&format=json";
-        $geocodingResponse = file_get_contents($geocodingUrl);
-        $geocodingData = json_decode($geocodingResponse, true);
-
-        $cidade = $geocodingData['name'] ?? 'Cidade desconhecida';
 
         $comparacao = $hojeTemp > $ontemTemp
             ? "Hoje está mais quente que ontem."
@@ -61,12 +61,12 @@ $router->get('/api/comparar-temperatura', function (\Illuminate\Http\Request $re
                 : "Hoje está com a mesma temperatura de ontem.");
 
         return response()->json([
-            'cidade' => $cidade,
             'ontem' => "{$ontemTemp}°C",
             'hoje' => "{$hojeTemp}°C",
             'comparacao' => $comparacao
         ]);
     } catch (\Exception $e) {
+        // Retorna um JSON válido em caso de erro
         return response()->json(['error' => 'Erro ao buscar os dados de temperatura', 'details' => $e->getMessage()], 500);
     }
 });
@@ -102,7 +102,7 @@ $router->get('/api/sugestoes', function (\Illuminate\Http\Request $request) {
         $sugestoes = array_map(function ($cidade) {
             return [
                 'name' => $cidade['name'],
-                'state' => $cidade['admin1'] ?? null, // Estado (se disponível)
+                'state' => $cidade['city'] ?? null, // Estado (se disponível)
                 'country' => $cidade['country'],
                 'lat' => $cidade['latitude'],
                 'lon' => $cidade['longitude']
@@ -126,6 +126,7 @@ $router->get('/api/clima-atual', function (\Illuminate\Http\Request $request) {
     }
 
     $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
+    $urlGeocoding = "https://geocoding-api.open-meteo.com/v1/reverse?latitude={$lat}&longitude={$lon}&language=pt&format=json";
 
     try {
         // Faz a requisição para a API Open-Meteo
@@ -160,7 +161,7 @@ $router->get('/api/previsao', function (\Illuminate\Http\Request $request) {
 
     // Calcula as datas de início e fim
     $hoje = date('Y-m-d');
-    $seteDiasDepois = date('Y-m-d', strtotime('+7 days'));
+    $seteDiasDepois = date('Y-m-d', strtotime('+8 days'));
 
     // URL da API Open-Meteo para buscar a previsão de 7 dias
     $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&start_date={$hoje}&end_date={$seteDiasDepois}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto";

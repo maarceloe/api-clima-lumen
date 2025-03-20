@@ -103,7 +103,7 @@ class ClimaController extends BaseController
 
         // Calcula as datas de início e fim
         $hoje = date('Y-m-d');
-        $seteDiasDepois = date('Y-m-d', strtotime('+7 days'));
+        $seteDiasDepois = date('Y-m-d', strtotime('+8 days'));
 
         $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&start_date={$hoje}&end_date={$seteDiasDepois}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto";
 
@@ -127,33 +127,39 @@ class ClimaController extends BaseController
         $lat = $request->get('lat');
         $lon = $request->get('lon');
 
-        if (!$lat || !$lon) {
-            return response()->json(['error' => 'Coordenadas não informadas'], 400);
+        if (!$lat || !$lon || !is_numeric($lat) || !is_numeric($lon)) {
+            return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
         }
 
         $ontem = date('Y-m-d', strtotime('-1 day'));
         $hoje = date('Y-m-d');
 
-        $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&start_date={$ontem}&end_date={$hoje}&daily=temperature_2m_max,temperature_2m_min&timezone=auto";
+        $url = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&start_date={$ontem}&end_date={$hoje}&daily=temperature_2m_max&timezone=auto";
 
         try {
             $response = $this->client->get($url);
             $dados = json_decode($response->getBody(), true);
 
-            if (!isset($dados['daily'])) {
-                return response()->json(['error' => 'Dados de temperatura não disponíveis'], 500);
+            if (!isset($dados['daily']['temperature_2m_max']) || count($dados['daily']['temperature_2m_max']) < 2) {
+                return response()->json(['error' => 'Dados de temperatura não disponíveis ou incompletos'], 500);
             }
 
             $ontemTemp = $dados['daily']['temperature_2m_max'][0];
             $hojeTemp = $dados['daily']['temperature_2m_max'][1];
 
+            $comparacao = $hojeTemp > $ontemTemp
+                ? "Hoje está mais quente que ontem."
+                : ($hojeTemp < $ontemTemp
+                    ? "Hoje está mais frio que ontem."
+                    : "Hoje está com a mesma temperatura de ontem.");
+
             return response()->json([
-                'ontem' => $ontemTemp,
-                'hoje' => $hojeTemp,
-                'diferenca' => $hojeTemp - $ontemTemp
+                'ontem' => "{$ontemTemp}°C",
+                'hoje' => "{$hojeTemp}°C",
+                'comparacao' => $comparacao
             ]);
-        } catch (RequestException $e) {
-            return response()->json(['error' => 'Erro ao comparar temperaturas'], 500);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Erro ao buscar os dados de temperatura', 'details' => $e->getMessage()], 500);
         }
     }
 }

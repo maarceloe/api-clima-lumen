@@ -9,7 +9,7 @@
 <body class="bg-blue-200">
     <div class="flex flex-row items-center justify-start p-2 w-50">
         <!-- Clima Atual -->
-        <div id="clima-atual" class="bg-white p-6 rounded-lg shadow-lg text-center mb-4 w-96 h-60">
+        <div id="clima-atual" class="bg-white p-2 rounded-lg shadow-lg text-center mb-2 w-80 h-3/4">
             <h1 class="text-xl font-bold">Clima Atual</h1>
             <p id="localizacao" class="text-gray-500 mb-2">Obtendo sua localização...</p>
             <div id="resultado-local" class="mt-2"></div>
@@ -143,7 +143,7 @@
                 return;
             }
 
-            fetch(`/api/sugestoes?query=${cidade}`)
+            fetch(`http://localhost:8000/api/sugestoes?query=${cidade}`)
                 .then(res => {
                     if (!res.ok) {
                         throw new Error(`Erro na requisição: ${res.status} ${res.statusText}`);
@@ -190,6 +190,9 @@
                 return;
             }
 
+            // Limpa o conteúdo da div antes de buscar os novos dados
+            document.getElementById(resultadoId).innerHTML = '';
+
             try {
                 let resposta = await fetch(`http://localhost:8000/api/clima-atual?lat=${lat}&lon=${lon}`);
 
@@ -205,16 +208,32 @@
 
                 const descricao = weatherDescriptions[dados.weathercode] || "Condição desconhecida";
 
+                // Função para obter o ícone da direção do vento
+                function getWindDirectionIcon(direction) {
+                    if (direction >= 337.5 || direction < 22.5) return "⬆️ Norte";
+                    if (direction >= 22.5 && direction < 67.5) return "↗️ Nordeste";
+                    if (direction >= 67.5 && direction < 112.5) return "➡️ Leste";
+                    if (direction >= 112.5 && direction < 157.5) return "↘️ Sudeste";
+                    if (direction >= 157.5 && direction < 202.5) return "⬇️ Sul";
+                    if (direction >= 202.5 && direction < 247.5) return "↙️ Sudoeste";
+                    if (direction >= 247.5 && direction < 292.5) return "⬅️ Oeste";
+                    if (direction >= 292.5 && direction < 337.5) return "↖️ Noroeste";
+                }
+
+                const direcaoVentoIcone = getWindDirectionIcon(dados.winddirection);
+
                 if (isLocal) {
-                    document.getElementById('localizacao').innerText = `Clima Atual para sua localização`;
+                    document.getElementById('localizacao').innerText = `Clima Atual para sua localização (${dados.city || 'Local desconhecido'})`;
                 }
 
                 // Atualiza o elemento com os dados do clima
                 document.getElementById(resultadoId).innerHTML = `
                     <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
+                        <p><strong>Cidade:</strong> ${dados.city || 'Desconhecida'}</p>
                         <p><strong>Temperatura:</strong> ${dados.temperature}°C</p>
+                        <p><strong>Umidade:</strong> ${dados.humidity || 'N/A'}%</p>
                         <p><strong>Velocidade do Vento:</strong> ${dados.windspeed} km/h</p>
-                        <p><strong>Direção do Vento:</strong> ${dados.winddirection}°</p>
+                        <p><strong>Direção do Vento:</strong> ${direcaoVentoIcone}</p>
                         <p><strong>Condição:</strong> ${descricao}</p>
                     </div>`;
             } catch (error) {
@@ -329,36 +348,29 @@
                 document.getElementById('comparacao-container').innerHTML = `<p class="text-red-500">Erro: Coordenadas inválidas.</p>`;
                 return;
             }
-
+        
             try {
-                let resposta = await fetch(`/api/comparar-temperatura?lat=${lat}&lon=${lon}`);
-
+                let resposta = await fetch(`http://localhost:8000/api/comparar-temperatura?lat=${lat}&lon=${lon}`);
+            
                 if (!resposta.ok) {
                     throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
                 }
-
+            
                 let dados = await resposta.json();
-
+            
                 if (dados.error) {
                     throw new Error(dados.error);
                 }
-
+            
                 // Exibe os dados na tela
                 document.getElementById('comparacao-container').innerHTML = `
                     <div class="p-4 bg-gray-100 rounded-lg h-full flex flex-col justify-center">
-                        <p><strong>Cidade:</strong> ${dados.cidade}</p>
                         <p><strong>Ontem:</strong> ${dados.ontem}</p>
                         <p><strong>Hoje:</strong> ${dados.hoje}</p>
                         <p><strong>Comparação:</strong> ${dados.comparacao}</p>
                     </div>`;
-
-                // Retorna o JSON no console (opcional)
-                console.log(dados);
-                return dados;
             } catch (error) {
                 console.error('Erro ao buscar a comparação de temperaturas:', error);
-
-                // Exibe o erro na tela
                 document.getElementById('comparacao-container').innerHTML = `
                     <p class="text-red-500">Erro ao buscar a comparação de temperaturas: ${error.message}</p>`;
             }
