@@ -40,6 +40,13 @@ php -S localhost:8000 -t public
 O projeto funcionará corretamente e as rotas seram visíveis copiando e colando no navegador ou colando as rotas no postam/apidog, entre outros.
 <br>
 
+A lógica das rotas estão disponíveis nas seguintes pastas:<br>
+Rotas:<br>
+api-clima-lumen -> routes -> web.php 
+<br>
+
+Controller:<br>
+api-clima-lumen -> app -> Http -> Controllers -> Controller.php
 # Lumen PHP Framework
 
 [![Build Status](https://travis-ci.org/laravel/lumen-framework.svg)](https://travis-ci.org/laravel/lumen-framework)
