@@ -389,34 +389,6 @@
             }
         }
 
-        async function buscarNomeCidadeEstado(lat, lon) {
-            if (!lat || !lon) {
-                console.error('Coordenadas inválidas fornecidas para buscarNomeCidadeEstado.');
-                document.getElementById('localizacao').innerText = 'Erro: Coordenadas inválidas.';
-                return;
-            }
-
-            try {
-                let resposta = await fetch(`http://localhost:8000/api/nome-cidade?lat=${lat}&lon=${lon}`);
-
-                if (!resposta.ok) {
-                    throw new Error(`Erro na requisição: ${resposta.status} ${resposta.statusText}`);
-                }
-
-                let dados = await resposta.json();
-
-                if (dados.error) {
-                    throw new Error(dados.error);
-                }
-
-                // Atualiza o elemento com o nome da cidade e do estado
-                document.getElementById('localizacao').innerText = `Localização: ${dados.cidade}, ${dados.estado || ''}`;
-            } catch (error) {
-                console.error('Erro ao buscar o nome da cidade:', error);
-                document.getElementById('localizacao').innerText = 'Erro ao buscar o nome da cidade.';
-            }
-        }
-
         // Inicializa a geolocalização ao carregar a página
         window.onload = obterLocalizacao;
     </script>
