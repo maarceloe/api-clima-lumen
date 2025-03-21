@@ -24,3 +24,35 @@ If you discover a security vulnerability within Lumen, please send an e-mail to 
 ## License
 
 The Lumen framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+API de Clima - Lumen Framework
+Este é um projeto de API desenvolvido com o micro-framework Lumen. A API fornece informações climáticas, como o clima atual, previsão para os próximos 7 dias e comparação de temperaturas e etc, utilizando dados de APIs externas como OpenWeatherMap e Open-Meteo.
+
+A API permite:
+
+Obter o clima atual: Informações como temperatura, umidade e descrição do clima para uma cidade ou coordenadas específicas.
+Previsão para os próximos 7 dias: Temperaturas máximas e mínimas diárias, além de descrições do clima.
+Comparar temperaturas: Comparação entre as temperaturas máximas de ontem e hoje para uma localização específica.
+
+Como testar este projeto:
+
+1. Pré-requisitos
+PHP >= 8.0
+Composer
+Git
+Um navegador ou ferramenta para testar APIs (como Postman ou cURL)
+
+2. Clone o repositório
+git clone https://github.com/seu-usuario/seu-repositorio.git
+
+3. Instale as dependências
+composer install
+
+4. Configure as variáveis de ambiente
+cp .env.example .env 
+
+5. Abra o terminal na pasta raíz do projeto e inicie o servidor
+php -S localhost:8000 -t public
+
+6. Teste as rotas da API
+O projeto funcionará corretamente e as rotas seram visíveis copiando e colando no navegador ou colando as rotas no postam/apidog, entre outros.

@@ -15,28 +15,35 @@
 
 // Obter o nome da cidade e estado
 
+// Função para obter o nome da cidade e estado a partir das coordenadas de latitude e longitude
 function obterCidadeEstado($lat, $lon) {
     $apiKeyGeocoding = '7efd79e2c4474d3eb95b76fd24d3a15c';
     $urlGeocoding = "https://api.opencagedata.com/geocode/v1/json?q={$lat}+{$lon}&key={$apiKeyGeocoding}&language=pt";
 
     try {
+        // Faz a requisição para a API de geocodificação
         $response = file_get_contents($urlGeocoding);
 
+        // Verifica se a requisição falhou
         if ($response === false) {
             return ['cidade' => 'Local desconhecido', 'estado' => null];
         }
 
+        // Decodifica a resposta em json da api
         $dados = json_decode($response, true);
 
+        // Verifica se os dados retornados são válidos
         if (!isset($dados['results'][0])) {
             return ['cidade' => 'Local desconhecido', 'estado' => null];
         }
 
+        // Obtém o nome da cidade e do estado a partir dos dados retornados
         $cidade = $dados['results'][0]['components']['city'] ?? 'Local desconhecido';
         $estado = $dados['results'][0]['components']['state'] ?? null;
 
         return ['cidade' => $cidade, 'estado' => $estado];
     } catch (\Exception $e) {
+        // Retorna valores padrão em caso de erro
         return ['cidade' => 'Local desconhecido', 'estado' => null];
     }
 }
@@ -46,8 +53,8 @@ function obterCidadeEstado($lat, $lon) {
 
 // Rota 1 = Dia atual
 // Exemplo
-// http://localhost:8000/api/dia-atual?lat=-23.5505&lon=-46.6333
-// http://localhost:8000/api/dia-atual?lat=-21.2115&lon=-50.4261
+// http://localhost:8000/api/dia-atual?lat=-23.5505&lon=-46.6333 = São Paulo
+// http://localhost:8000/api/dia-atual?lat=-21.2115&lon=-50.4261 = Araçatuba
 $router->get('/api/dia-atual', function (\Illuminate\Http\Request $request) {
     $lat = $request->get('lat');
     $lon = $request->get('lon');
@@ -174,8 +181,8 @@ $router->get('/api/clima-atual', function (\Illuminate\Http\Request $request) {
 
 // Rota 3 = Previsão para os próximos 7 dias
 // Exemplo
-// http://localhost:8000/api/previsao-7-dias?lat=-23.5505&lon=-46.6333
-// http://localhost:8000/api/previsao-7-dias?lat=-21.2115&lon=-50.4261
+// http://localhost:8000/api/previsao-7-dias?lat=-23.5505&lon=-46.6333 = São Paulo
+// http://localhost:8000/api/previsao-7-dias?lat=-21.2115&lon=-50.4261 = Araçatuba
 $router->get('/api/previsao-7-dias', function (\Illuminate\Http\Request $request) {
     $lat = $request->get('lat');
     $lon = $request->get('lon');
@@ -238,8 +245,8 @@ $router->get('/api/previsao-7-dias', function (\Illuminate\Http\Request $request
 
 // Rota 4 = Tempertura média do dia anterior
 // Exemplo
-// http://localhost:8000/api/temperatura-ontem?lat=-23.5505&lon=-46.6333
-// http://localhost:8000/api/temperatura-ontem?lat=-21.2115&lon=-50.4261
+// http://localhost:8000/api/temperatura-ontem?lat=-23.5505&lon=-46.6333 = São Paulo
+// http://localhost:8000/api/temperatura-ontem?lat=-21.2115&lon=-50.4261 = Araçatuba
 $router->get('/api/temperatura-ontem', function (\Illuminate\Http\Request $request) {
     $lat = $request->get('lat', -23.5505); // Latitude padrão: São Paulo
     $lon = $request->get('lon', 46.6333); // Longitude padrão: São Paulo
@@ -314,8 +321,8 @@ $router->get('/api/converter-temperatura', function (\Illuminate\Http\Request $r
 
 // Rota 6 = Nascer e por do sol
 // Exemplo
-// http://localhost:8000/api/nascer-por-sol?lat=-23.5505&lon=-46.6333
-// http://localhost:8000/api/nascer-por-sol?lat=-21.2115&lon=-50.4261
+// http://localhost:8000/api/nascer-por-sol?lat=-23.5505&lon=-46.6333 = São Paulo
+// http://localhost:8000/api/nascer-por-sol?lat=-21.2115&lon=-50.4261 = Araçatuba
 $router->get('/api/nascer-por-sol', function (\Illuminate\Http\Request $request) {
     $lat = $request->get('lat', -23.5505); // Latitude padrão: São Paulo
     $lon = $request->get('lon', -46.6333); // Longitude padrão: São Paulo
@@ -358,8 +365,8 @@ $router->get('/api/nascer-por-sol', function (\Illuminate\Http\Request $request)
 
 // Rota 7 = Previsão de chuva
 // Exemplo
-// http://localhost:8000/api/previsao-chuva?lat=-23.5505&lon=-46.6333
-// http://localhost:8000/api/previsao-chuva?lat=-21.2115&lon=-50.4261
+// http://localhost:8000/api/previsao-chuva?lat=-23.5505&lon=-46.6333 = São Paulo
+// http://localhost:8000/api/previsao-chuva?lat=-21.2115&lon=-50.4261 = Araçatuba
 $router->get('/api/previsao-chuva', function (\Illuminate\Http\Request $request) {
     $lat = $request->get('lat', -23.5505); // Latitude padrão: São Paulo
     $lon = $request->get('lon', -46.6333); // Longitude padrão: São Paulo

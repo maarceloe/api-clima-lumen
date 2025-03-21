@@ -11,17 +11,19 @@ class ClimaController extends BaseController
 {
     protected $client;
 
+    // Construtor para inicializar o cliente HTTP
     public function __construct()
     {
         $this->client = new Client();
     }
 
-    // Clima atual
+    // Obtém o clima atual com base na latitude e longitude fornecidas
     public function climaAtual(Request $request)
     {
         $lat = $request->get('lat');
         $lon = $request->get('lon');
 
+        // Verifica se as coordenadas foram fornecidas
         if (!$lat || !$lon) {
             return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
         }
@@ -29,6 +31,7 @@ class ClimaController extends BaseController
         $urlClima = "https://api.open-meteo.com/v1/forecast?latitude={$lat}&longitude={$lon}&current_weather=true&timezone=auto";
 
         try {
+            // Faz a requisição para a api e decodifica a resposta
             $response = $this->client->get($urlClima);
             $dadosClima = json_decode($response->getBody(), true);
 
@@ -38,11 +41,12 @@ class ClimaController extends BaseController
 
             return response()->json($dadosClima['current_weather']);
         } catch (\Exception $e) {
+            // Captura erros e retorna uma mensagem detalhada
             return response()->json(['error' => 'Erro ao buscar o clima atual', 'details' => $e->getMessage()], 500);
         }
     }
 
-    // Previsão de 7 dias
+    // Obtém a previsão do tempo para os próximos 7 dias
     public function previsaoSeteDias(Request $request)
     {
         $lat = $request->get('lat');
@@ -52,7 +56,7 @@ class ClimaController extends BaseController
             return response()->json(['error' => 'Coordenadas não informadas'], 400);
         }
 
-        // Calcula as datas de início e fim
+        // Calcula as datas de início (hoje) e fim (7 dias depois)
         $hoje = date('Y-m-d');
         $seteDiasDepois = date('Y-m-d', strtotime('+7 days'));
 
@@ -72,7 +76,7 @@ class ClimaController extends BaseController
         }
     }
 
-    // Comparar temperaturas
+    // Compara as temperaturas máximas de ontem e hoje
     public function compararTemperatura(Request $request)
     {
         $lat = $request->get('lat');
@@ -82,6 +86,7 @@ class ClimaController extends BaseController
             return response()->json(['error' => 'Coordenadas inválidas ou ausentes'], 400);
         }
 
+        // Calcula as datas de ontem e hoje
         $ontem = date('Y-m-d', strtotime('-1 day'));
         $hoje = date('Y-m-d');
 
